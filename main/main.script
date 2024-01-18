@@ -1,0 +1,27 @@
+require "common.utils"
+require "common.consts"
+
+local monarch = require "monarch.monarch"
+local save_data = require "common.save_data"
+
+local START_SCREEN = "game"
+
+function init(self)
+    msg.post("@render:", "use_fixed_fit_projection", { near = -1, far = 1 })
+
+    math.randomseed(os.time())
+    math.randomseed(os.time())
+    math.randomseed(os.time())
+
+    save_data.initialize()
+
+    timer.delay(0.05, false, function()
+        monarch.show(START_SCREEN)
+    end)
+end
+
+function on_message(self, message_id, message, sender)
+end
+
+function final(self)
+end

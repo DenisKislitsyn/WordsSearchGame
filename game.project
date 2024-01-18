@@ -1,0 +1,31 @@
+[bootstrap]
+main_collection = /main/main.collectionc
+render = /render/custom.renderc
+
+[script]
+shared_state = 1
+
+[display]
+width = 540
+height = 960
+
+[android]
+input_method = HiddenInputField
+
+[project]
+title = OpenMyGameTest
+version = 0.0.1
+publisher = DKislitsyn
+developer = DKislitsyn
+custom_resources = configs
+dependencies#0 = https://github.com/britzl/monarch/archive/refs/tags/3.4.5.zip
+dependencies#1 = https://github.com/Insality/druid/archive/refs/tags/0.10.3.zip
+dependencies#2 = https://github.com/britzl/ludobits/archive/refs/tags/7.3.0.zip
+
+[html5]
+heap_size = 128
+show_fullscreen_button = 0
+show_made_with_defold = 0
+show_console_banner = 0
+scale_mode = fit
+

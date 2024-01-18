@@ -1,0 +1,112 @@
+local druid = require "druid.druid"
+local monarch = require "monarch.monarch"
+local controller = require 'main.game.game_controller'
+
+local PADDING = 15
+local BASE_W, BASE_H = 3, 3
+
+local function win_callback(self, params, button, hold_time)
+    controller.win()
+    monarch.hide(self.name, function()
+        -- add params if it needs
+        monarch.show('win_screen', {}, {})
+    end)
+end
+
+local function reset_bonus_callback(self, params, button, hold_time)
+    controller.reset_bonus_words()
+end
+
+function init(self)
+    gui.set_render_order(ORDER_FOR_SCREEN)
+
+    self.name = "game"
+
+    self.druid = druid.new(self)
+
+    self.buttons = {}
+    self.buttons['win'] = self.druid:new_button("win/button", win_callback)
+    self.buttons['reset_bonus'] = self.druid:new_button("reset_bonus/button", reset_bonus_callback)
+
+    self.cell_node = gui.get_node('cell/cell')
+    self.cell_size = gui.get_size(self.cell_node)
+    self.cell_scale = gui.get_scale(self.cell_node)
+end
+
+function update(self, dt)
+    gui.set_text(gui.get_node('word'), controller.word)
+    gui.set_text(gui.get_node('bonus_total'), 'Бонусные слова - ' .. controller.bonus_words_count)
+    gui.set_text(gui.get_node('bonus_level'), 'Бонусные слова на уровне - ' .. #controller.state.bonus_words)
+
+    self.druid:update(dt)
+end
+
+local function draw_board(self)
+    self.board = {}
+
+    local scale_x = (BASE_W / controller.data.width) * self.cell_scale.x
+    local scale_y = (BASE_H / controller.data.height) * self.cell_scale.y
+    local scale = math.min(scale_x,scale_y)
+
+    local cell_size_x = self.cell_size.x * scale * self.cell_scale.x
+    local cell_size_y = self.cell_size.y * scale * self.cell_scale.y
+    local padding = PADDING * scale
+
+    for y=1, controller.data.height do
+        for x=1, controller.data.width do
+            local index = (y-1)*controller.data.width + x
+
+            local node_data = gui.clone_tree(self.cell_node)
+            local node = node_data[hash('cell/cell')]
+
+            gui.set_scale(node, vmath.vector3(scale))
+
+            gui.set_parent(node, gui.get_node('board'))
+            local pos_x = (((index % controller.data.width == 0 and controller.data.width) or (index % controller.data.width)) - ((controller.data.width + 1) / 2)) * (cell_size_x + padding)
+            local pos_y = (math.ceil(index / controller.data.width) - ((controller.data.height + 1) / 2)) * (cell_size_y + padding)
+            gui.set_position(node, vmath.vector3(pos_x, -pos_y, 0))
+
+            local letter = controller.data.letters[index]
+            gui.set_text(node_data[hash('cell/letter')], letter)
+
+            table.insert(self.board, {
+                node = node,
+                letter = letter,
+                index = index
+            })
+        end
+    end
+end
+
+function on_message(self, message_id, message, sender)
+    self.druid:on_message(message_id, message, sender)
+
+    if message_id == monarch.FOCUS.GAINED then
+        local data = monarch.data(self.name) or {}
+
+        controller.new(self, data.level, draw_board)
+        gui.set_text(gui.get_node('level'), 'Уровень ' .. controller.level)
+
+    elseif message_id == hash('show_hint') then
+        gui.set_color(gui.get_node('hint'), vmath.vector4(1))
+        gui.set_enabled(gui.get_node('hint'), true)
+        gui.set_text(gui.get_node('hint'), message.text or 'Подсказка')
+
+        gui.animate(gui.get_node('hint'), 'color.w', 0, gui.EASING_LINEAR, 0.4, 1, function()
+            gui.set_enabled(gui.get_node('hint'), false)
+        end)
+
+    elseif message_id == hash('win') then
+        win_callback(self)
+    end
+end
+
+function on_input(self, action_id, action)
+    controller.on_input(self, action_id, action)
+    return self.druid:on_input(action_id, action)
+end
+
+function final(self)
+    controller.final(self)
+    self.druid:final()
+end

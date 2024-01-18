@@ -1,0 +1,98 @@
+local druid = require "druid.druid"
+local monarch = require "monarch.monarch"
+local save_data = require 'common.save_data'
+local levels_data = require 'configs.levels'
+
+local colors = {
+    CURRENT_LEVEL = vmath.vector3(0,128/255,0),
+    PASSED_LEVEL = vmath.vector3(77/255,128/255,77/255),
+    LOCKED_LEVEL = vmath.vector3(102/255),
+    LOCKED_PROGRESS_LINE = vmath.vector3(128/255,179/255,128/255),
+    PASSED_PROGRESS_LINE = vmath.vector3(128/255)
+}
+
+local function play_callback(self, params, button, hold_time)
+    monarch.hide(self.name, function()
+        -- add params if it needs
+        monarch.show('game')
+    end)
+end
+
+function init(self)
+    gui.set_render_order(ORDER_FOR_SCREEN)
+
+    self.name = "win_screen"
+    self.druid = druid.new(self)
+
+    self.buttons = {}
+    self.buttons['play'] = self.druid:new_button("play/button", play_callback)
+
+    self.scroll = self.druid:new_scroll("levels", "scroll"):set_vertical_scroll(false)
+
+    self.level_node = gui.get_node('level')
+    self.level_size = gui.get_size(self.level_node)
+end
+
+function update(self, dt)
+    self.druid:update(dt)
+end
+
+local START_X = 270
+local PROGRESS_LINE_SIZE_X = 100
+local function draw_levels(self)
+    self.levels_nodes = {}
+    local current_level = save_data.load('level')
+    local level_from = current_level == 1 and #levels_data or (current_level-1)
+
+    self.content_size = START_X*2 + (#levels_data - 1)*(PROGRESS_LINE_SIZE_X+self.level_size.x)
+    self.scroll:set_size(vmath.vector4(self.content_size, 300, 0, 0), vmath.vector4(0))
+
+    for index, data in ipairs(levels_data) do
+        local node_data = gui.clone_tree(self.level_node)
+        local node = node_data[hash('level')]
+        gui.set_parent(node, gui.get_node('scroll'))
+
+        local pos = vmath.vector3(0)
+        pos.x = START_X + (index-1) * (self.level_size.x + PROGRESS_LINE_SIZE_X)
+        gui.set_position(node, pos)
+
+        gui.set_text(node_data[hash('level_num')], index)
+        gui.set_color(node, current_level == index and colors.CURRENT_LEVEL or current_level > index and colors.PASSED_LEVEL or colors.LOCKED_LEVEL)
+        gui.set_color(node_data[hash('progress_line')], current_level <= index and colors.PASSED_PROGRESS_LINE or colors.LOCKED_PROGRESS_LINE)
+
+        table.insert(self.levels_nodes, {
+            node = node,
+            level = index
+        })
+
+        if index == level_from then
+            self.scroll:scroll_to(pos, true)
+        elseif index == current_level then
+            gui.animate(gui.get_node('scroll'), 'position.x', -pos.x, gui.EASING_INOUTBACK, 0.7, 0.1, function()
+                self.scroll:scroll_to(pos, true)
+            end)
+        end
+
+        if index == #levels_data then
+            gui.set_enabled(node_data['progress_line'], false)
+        end
+    end
+end
+
+function on_message(self, message_id, message, sender)
+    self.druid:on_message(message_id, message, sender)
+
+    if message_id == monarch.FOCUS.GAINED then
+        local data = monarch.data(self.name) or {}
+
+        draw_levels(self)
+    end
+end
+
+function on_input(self, action_id, action)
+    return self.druid:on_input(action_id, action)
+end
+
+function final(self)
+    self.druid:final()
+end
